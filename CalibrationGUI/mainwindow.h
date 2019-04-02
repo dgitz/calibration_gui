@@ -21,6 +21,9 @@ public:
     ~MainWindow();
 public slots:
     void send_Heartbeat_message();
+    void update_messageviewer(const Diagnostic &diag);
+    void update_messageviewer(const ArmedState &state);
+    void start_udp();
 
 private:
     bool new_udpmsgsent(std::string id);
@@ -30,6 +33,7 @@ private:
     Ui::MainWindow *ui;
     QString DeviceName;
     UDPTransmitter udp_transmitter;
+    UDPReceiver udp_receiver;
 
     QTimer *timer_10ms;
     QTimer *timer_50ms;

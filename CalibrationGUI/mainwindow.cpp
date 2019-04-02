@@ -6,8 +6,15 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    udp_transmitter.set_server_info("127.0.0.1",5678);
-    udp_transmitter.set_debugmode(true);
+    ui->tRecvPort->setText("45454");
+    ui->tRecvServer->setText("239.255.43.21");
+    ui->tSendPort->setText("5678");
+    ui->tSendServer->setText("127.0.0.1");
+    //udp_transmitter.set_server_info("127.0.0.1",5678);
+    //udp_transmitter.set_debugmode(true);
+    //udp_receiver.set_debug_mode(true);
+   // udp_receiver.set_server_info("239.255.43.21",45454);
+    //udp_receiver.Start();
 
     QList<QHostAddress> list = QNetworkInterface::allAddresses();
 
@@ -30,7 +37,8 @@ MainWindow::MainWindow(QWidget *parent) :
     timer_1000ms = new QTimer(this);
     timer_5000ms = new QTimer(this);
 
-    connect(timer_100ms,SIGNAL(timeout()),this,SLOT(send_Heartbeat_message()));
+    connect(ui->bConnect,SIGNAL(clicked(bool)),SLOT(start_udp()));
+
 
     timer_10ms->start(10);
     timer_50ms->start(50);
@@ -43,6 +51,19 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
+void MainWindow::start_udp()
+{
+    udp_transmitter.set_debugmode(false);
+    udp_receiver.set_debug_mode(false);
+    udp_receiver.set_server_info(ui->tRecvServer->toPlainText(),(uint16_t)(ui->tRecvPort->toPlainText().toLong()));
+    udp_transmitter.set_server_info(ui->tSendServer->toPlainText(),(uint16_t)(ui->tSendPort->toPlainText().toLong()));
+    udp_transmitter.Start();
+    udp_receiver.Start();
+
+    connect(timer_100ms,SIGNAL(timeout()),this,SLOT(send_Heartbeat_message()));
+    connect(&udp_receiver,SIGNAL(new_diagnosticmessage(Diagnostic)),this,SLOT(update_messageviewer(Diagnostic)));
+    connect(&udp_receiver,SIGNAL(new_armedstatusmessage(ArmedState)),this,SLOT(update_messageviewer(ArmedState)));
+}
 void MainWindow::send_Heartbeat_message()
 {
     //qDebug() << "Name: " << DeviceName;
@@ -52,7 +73,21 @@ void MainWindow::send_Heartbeat_message()
     new_udpmsgsent(UDP_Heartbeat_ID);
     udp_transmitter.send_Heartbeat_0xAB31(DeviceName.toStdString(),unixtime,unixtime2);
 }
-
+void MainWindow::update_messageviewer(const Diagnostic &diag)
+{
+    //new_udpmsgreceived(UDP_Diagnostic_ID);
+    if(diag.Level > INFO)
+    {
+        QString tempstr = "[" + QTime::currentTime().toString() + " " + QString::fromStdString(diag.NodeName) + "] " + QString::fromStdString(diag.Description);
+        ui->tInfo->append(tempstr);
+    }
+}
+void MainWindow::update_messageviewer(const ArmedState &state)
+{
+    //new_udpmsgreceived(UDP_Diagnostic_ID);
+        QString tempstr = "[" + QTime::currentTime().toString() + " Armed State: " + QString::number(state.state);
+        ui->tInfo->append(tempstr);
+}
 bool MainWindow::new_udpmsgsent(std::string id)
 {
     bool found = false;
